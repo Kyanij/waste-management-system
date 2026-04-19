@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Serif+Display&display=swap');
+
+:root {
+  --green-50: #eaf3de;
+  --green-100: #c0dd97;
+  --green-200: #97c459;
+  --green-400: #639922;
+  --green-600: #3b6d11;
+  --green-700: #2e560d;
+  --green-800: #27500a;
+  --green-900: #173404;
+
+  --amber-50: #faeeda;
+  --amber-200: #ef9f27;
+  --amber-600: #854f0b;
+
+  --blue-50: #e6f1fb;
+  --blue-400: #378add;
+  --blue-600: #185fa5;
+
+  --red-50: #fcebeb;
+  --red-400: #e24b4a;
+  --red-600: #a32d2d;
+
+  --gray-50: #f9f8f5;
+  --gray-100: #f1efe8;
+  --gray-200: #d3d1c7;
+  --gray-400: #888780;
+  --gray-600: #5f5e5a;
+  --gray-900: #2c2c2a;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--gray-50);
+  color: var(--gray-900);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 0;
+  flex: 1;
+  min-height: calc(100vh - 60px);
+}
+
+.main-content {
+  padding: 2rem;
+  overflow-y: auto;
+  background: var(--gray-50);
+}

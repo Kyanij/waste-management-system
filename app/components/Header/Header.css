@@ -1,0 +1,122 @@
+.header {
+  background: var(--green-700);
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 60px;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-logo-icon {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px;
+  fill: #fff;
+}
+
+.header-logo-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: #fff;
+}
+
+.header-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.25rem;
+  color: #fff;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.portal-badge {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.lang-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.lang-globe {
+  position: absolute;
+  left: 9px;
+  pointer-events: none;
+  display: flex;
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 1.8;
+}
+
+.lang-globe svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 1.8;
+}
+
+.lang-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 6px 30px 6px 29px;
+  background: rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12.5px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s;
+  min-width: 110px;
+}
+
+.lang-select:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.lang-select option {
+  background: #2d5510;
+  color: #fff;
+}
+
+.lang-chevron {
+  position: absolute;
+  right: 9px;
+  pointer-events: none;
+  display: flex;
+}
+
+.lang-chevron svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 2.2;
+}
