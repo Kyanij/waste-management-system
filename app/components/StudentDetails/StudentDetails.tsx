@@ -144,6 +144,9 @@ export function StudentDetails({ student }: StudentDetailsProps) {
           onChange={handleToDateChange}
           min={dateRange.from}
         />
+        <button className="btn-apply" onClick={() => {}}>
+          {t.apply}
+        </button>
       </div>
 
       <div className="sec-lbl">{t.collSummary}</div>

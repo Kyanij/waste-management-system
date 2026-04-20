@@ -129,3 +129,38 @@ export function EWasteIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function ArrowRightIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className}>
+      <path d="M5 12h14M12 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function SpinnerIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className}>
+      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="60" strokeDashoffset="20" />
+    </svg>
+  );
+}
+
+export function CheckCircleIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className}>
+      <path d="M22 11.08V12a10 10 0 11-10-10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M22 4L12 14.01l-3-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function ErrorIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className}>
+      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" />
+      <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}

@@ -58,6 +58,18 @@ export interface TranslationKeys {
   totCollected: string;
   totEarnings: string;
   noRecords: string;
+  // Admin Login
+  adminBadge?: string;
+  adminTitle?: string;
+  adminSubtitle?: string;
+  emailLabel?: string;
+  passwordLabel?: string;
+  rememberMe?: string;
+  forgotPassword?: string;
+  signIn?: string;
+  signingIn?: string;
+  footerText?: string;
+  footerContact?: string;
 }
 
 export interface Translations {

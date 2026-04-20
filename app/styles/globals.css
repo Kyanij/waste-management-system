@@ -63,3 +63,81 @@ body {
   overflow-y: auto;
   background: var(--gray-50);
 }
+
+.admin-page {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  color: #2d3748;
+  background: linear-gradient(135deg, #f0f4f3 0%, #e8f5f0 100%);
+  position: relative;
+}
+
+/* Admin Header Language Selector - smaller like header dropdown */
+.admin-header-lang {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  z-index: 10;
+}
+
+.admin-header-lang .lang-globe-icon {
+  position: absolute;
+  left: 8px;
+  pointer-events: none;
+}
+
+.admin-header-lang .lang-globe-icon svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 1.8;
+}
+
+.admin-header-lang .admin-lang-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 4px 24px 4px 25px;
+  background: rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s;
+  min-width: 85px;
+}
+
+.admin-header-lang .admin-lang-select:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.admin-header-lang .admin-lang-select option {
+  background: #2d5510;
+  color: #fff;
+}
+
+.admin-header-lang .lang-chevron-icon {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+}
+
+.admin-header-lang .lang-chevron-icon svg {
+  width: 8px;
+  height: 8px;
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 2.2;
+}
