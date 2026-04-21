@@ -18,6 +18,7 @@ interface AppSidebarProps {
 const navItems: NavItem[] = [
   { id: 'dashboard', icon: 'fa-home', label: 'Dashboard', labelId: 'navDashboard', route: '/dashboard' },
   { id: 'students', icon: 'fa-user-graduate', label: 'Manage Students', labelId: 'navStudents', route: '/manage-student' },
+  { id: 'wasteTypes', icon: 'fa-tags', label: 'Waste Types', labelId: 'navWasteTypes', route: '/waste-types' },
   { id: 'collection', icon: 'fa-recycle', label: 'Waste Collection', labelId: 'navCollection', route: '/waste-collection' },
   { id: 'reports', icon: 'fa-chart-bar', label: 'Reports & Analytics', labelId: 'navReports' },
   { id: 'settings', icon: 'fa-cog', label: 'Settings', labelId: 'navSettings' },
@@ -27,6 +28,7 @@ const translations = {
   en: {
     navDashboard: 'Dashboard',
     navStudents: 'Manage Students',
+    navWasteTypes: 'Waste Types',
     navCollection: 'Waste Collection',
     navReports: 'Reports & Analytics',
     navSettings: 'Settings',
@@ -38,6 +40,7 @@ const translations = {
   id: {
     navDashboard: 'Dasbor',
     navStudents: 'Kelola Siswa',
+    navWasteTypes: 'Jenis Limbah',
     navCollection: 'Pengumpulan Limbah',
     navReports: 'Laporan & Analitik',
     navSettings: 'Pengaturan',

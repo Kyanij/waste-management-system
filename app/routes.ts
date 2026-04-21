@@ -7,4 +7,5 @@ export default [
   route("dashboard", "routes/dashboard.tsx"),
   route("manage-student", "routes/manage-student.tsx"),
   route("waste-collection", "routes/waste-collection.tsx"),
+  route("waste-types", "routes/waste-types.tsx"),
 ] satisfies RouteConfig;
