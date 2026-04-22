@@ -1,33 +1,10 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useToast } from '../../context/ToastContext';
 import { useI18n } from '../../lib/i18n';
 import { AppSidebar } from '../AppSidebar/AppSidebar';
+import { studentService, type Student } from '../../services/students';
 import './ManageStudents.css';
-
-interface Student {
-  id: string;
-  studentId: string;
-  name: string;
-  email: string;
-  gradeLevel: string;
-  dateAdded: string;
-}
-
-const initialStudents: Student[] = [
-  { id: '1', studentId: 'STU001', name: 'Sarah Johnson', email: 'sarah.johnson@school.edu', gradeLevel: '10', dateAdded: '2024-01-15' },
-  { id: '2', studentId: 'STU002', name: 'Michael Chen', email: 'michael.chen@school.edu', gradeLevel: '9', dateAdded: '2024-01-14' },
-  { id: '3', studentId: 'STU003', name: 'Emma Davis', email: 'emma.davis@school.edu', gradeLevel: '11', dateAdded: '2024-01-13' },
-  { id: '4', studentId: 'STU004', name: 'James Wilson', email: 'james.wilson@school.edu', gradeLevel: '10', dateAdded: '2024-01-12' },
-  { id: '5', studentId: 'STU005', name: 'Olivia Brown', email: 'olivia.brown@school.edu', gradeLevel: '12', dateAdded: '2024-01-11' },
-  { id: '6', studentId: 'STU006', name: 'William Lee', email: 'william.lee@school.edu', gradeLevel: '9', dateAdded: '2024-01-10' },
-  { id: '7', studentId: 'STU007', name: 'Sophia Martinez', email: 'sophia.martinez@school.edu', gradeLevel: '11', dateAdded: '2024-01-09' },
-  { id: '8', studentId: 'STU008', name: 'Benjamin Taylor', email: 'benjamin.taylor@school.edu', gradeLevel: '10', dateAdded: '2024-01-08' },
-  { id: '9', studentId: 'STU009', name: 'Mia Anderson', email: 'mia.anderson@school.edu', gradeLevel: '9', dateAdded: '2024-01-07' },
-  { id: '10', studentId: 'STU010', name: 'Lucas Thomas', email: 'lucas.thomas@school.edu', gradeLevel: '12', dateAdded: '2024-01-06' },
-  { id: '11', studentId: 'STU011', name: 'Charlotte Jackson', email: 'charlotte.jackson@school.edu', gradeLevel: '10', dateAdded: '2024-01-05' },
-  { id: '12', studentId: 'STU012', name: 'Henry White', email: 'henry.white@school.edu', gradeLevel: '11', dateAdded: '2024-01-04' },
-];
 
 const navItems = [
   { id: 'dashboard', icon: 'fa-home', label: 'Dashboard', route: '/dashboard' },
@@ -44,7 +21,7 @@ export function ManageStudents() {
   const { t, language, setLanguage } = useI18n();
   const isLangEn = language === 'en';
   
-  const [students, setStudents] = useState<Student[]>(initialStudents);
+  const [students, setStudents] = useState<Student[]>([]);
   const [activeNav, setActiveNav] = useState('students');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -52,7 +29,16 @@ export function ManageStudents() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const unsubscribe = studentService.subscribeToStudents((data) => {
+      setStudents(data);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -165,28 +151,36 @@ export function ManageStudents() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    if (editingStudent) {
-      setStudents(prev => prev.map(s => 
-        s.id === editingStudent.id 
-          ? { ...s, ...formData, dateAdded: s.dateAdded }
-          : s
-      ));
-      showToast('success', labels.studentUpdated);
-    } else {
-      const newStudent: Student = {
-        id: `stu-${Date.now()}`,
-        ...formData,
-        dateAdded: new Date().toISOString().split('T')[0],
-      };
-      setStudents(prev => [newStudent, ...prev]);
-      showToast('success', labels.studentAdded);
+    setIsLoading(true);
+    try {
+      if (editingStudent) {
+        await studentService.updateStudent(editingStudent.id, {
+          name: formData.name,
+          studentId: formData.studentId,
+          email: formData.email,
+          gradeLevel: formData.gradeLevel,
+        });
+        showToast('success', labels.studentUpdated);
+      } else {
+        await studentService.addStudent({
+          name: formData.name,
+          studentId: formData.studentId,
+          email: formData.email,
+          gradeLevel: formData.gradeLevel,
+          dateAdded: new Date().toISOString().split('T')[0],
+        });
+        showToast('success', labels.studentAdded);
+      }
+    } catch (error) {
+      showToast('error', 'Failed to save student');
+    } finally {
+      setIsLoading(false);
+      resetForm();
     }
-
-    resetForm();
   };
 
   const handleEdit = (student: Student) => {
@@ -201,12 +195,19 @@ export function ManageStudents() {
     setFormErrors({ name: '', studentId: '', email: '' });
   };
 
-  const handleDelete = (id: string) => {
-    setStudents(prev => prev.filter(s => s.id !== id));
-    showToast('success', labels.studentDeleted);
-    setShowDeleteConfirm(null);
-    if (paginatedStudents.length === 1 && currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
+  const handleDelete = async (id: string) => {
+    setIsLoading(true);
+    try {
+      await studentService.deleteStudent(id);
+      showToast('success', labels.studentDeleted);
+      setShowDeleteConfirm(null);
+      if (paginatedStudents.length === 1 && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+      }
+    } catch (error) {
+      showToast('error', 'Failed to delete student');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -399,37 +400,37 @@ export function ManageStudents() {
         )}
 
         <div className="ms-table-card">
+          <div className="ms-table-header">
+            <div className="ms-table-header-left">
+              <div className="ms-form-header-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 010 7.75"/>
+                </svg>
+              </div>
+              <div>
+                <h3>{labels.pageTitle}</h3>
+                <p>{labels.showing} {filteredStudents.length} {labels.entries}</p>
+              </div>
+            </div>
+            <div className="ms-search-wrapper">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input 
+                type="text"
+                value={searchQuery}
+                onChange={handleSearch}
+                placeholder={labels.search}
+                className="ms-search-input"
+              />
+            </div>
+          </div>
+
           {filteredStudents.length > 0 ? (
             <>
-              <div className="ms-table-header">
-                <div className="ms-table-header-left">
-                  <div className="ms-form-header-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-                      <circle cx="9" cy="7" r="4"/>
-                      <path d="M23 21v-2a4 4 0 00-3-3.87"/>
-                      <path d="M16 3.13a4 4 0 010 7.75"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <h3>{labels.pageTitle}</h3>
-                    <p>{labels.showing} {filteredStudents.length} {labels.entries}</p>
-                  </div>
-                </div>
-                <div className="ms-search-wrapper">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  </svg>
-                  <input 
-                    type="text"
-                    value={searchQuery}
-                    onChange={handleSearch}
-                    placeholder={labels.search}
-                    className="ms-search-input"
-                  />
-                </div>
-              </div>
-
               <div className="ms-table-wrapper">
                 <table className="ms-table">
                   <thead>
@@ -542,31 +543,36 @@ export function ManageStudents() {
                 </svg>
               </div>
               <h4>{labels.noResults}</h4>
-              <p>Coba sesuaikan kriteria pencarian Anda</p>
+              <p>{isLangEn ? 'Try adjusting your search criteria' : 'Coba sesuaikan kriteria pencarian Anda'}</p>
             </div>
           )}
         </div>
       </main>
 
       {showDeleteConfirm && (
-        <div className="ms-modal-overlay">
-          <div className="ms-modal">
-            <div className="ms-modal-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-            </div>
-            <h3>{labels.confirmDelete}</h3>
-            <p>{students.find(s => s.id === showDeleteConfirm)?.name}?</p>
-            <div className="ms-modal-actions">
-              <button className="ms-btn ms-btn-secondary" onClick={() => setShowDeleteConfirm(null)}>
-                {labels.cancel}
-              </button>
-              <button className="ms-btn ms-btn-danger" onClick={() => handleDelete(showDeleteConfirm)}>
-                {labels.yes}
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 scale-in-modal">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">{labels.confirmDelete} {students.find(s => s.id === showDeleteConfirm)?.name}?</h3>
+              <div className="flex gap-3 justify-center mt-4">
+                <button 
+                  className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                  onClick={() => setShowDeleteConfirm(null)}
+                >
+                  {labels.cancel}
+                </button>
+                <button 
+                  className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+                  onClick={() => handleDelete(showDeleteConfirm)}
+                >
+                  {labels.yes}
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faTags, faPlus, faSearch, faPencil, faTrash, 
@@ -7,28 +7,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useI18n } from '../../lib/i18n';
 import { AppSidebar } from '../AppSidebar/AppSidebar';
+import { wasteTypeService, type WasteType } from '../../services/wasteTypes';
 import './WasteTypes.css';
-
-interface WasteType {
-  id: string;
-  name: string;
-  nameEn: string;
-  price: number;
-  status: 'active' | 'inactive';
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-const initialWasteTypes: WasteType[] = [
-  { id: 'WST-001', name: 'Botol Plastik', nameEn: 'Plastic Bottle', price: 7500, status: 'active', createdAt: '2024-01-01' },
-  { id: 'WST-002', name: 'Sampah Kertas', nameEn: 'Paper Waste', price: 6000, status: 'active', createdAt: '2024-01-01' },
-  { id: 'WST-003', name: 'Kaleng Aluminium', nameEn: 'Aluminum Can', price: 7500, status: 'active', createdAt: '2024-01-02' },
-  { id: 'WST-004', name: 'E-Waste', nameEn: 'E-Waste', price: 45000, status: 'active', createdAt: '2024-01-02' },
-  { id: 'WST-005', name: 'Botol Kaca', nameEn: 'Glass Bottle', price: 4500, status: 'active', createdAt: '2024-01-03' },
-  { id: 'WST-006', name: 'Sampah Organik', nameEn: 'Organic Waste', price: 1500, status: 'inactive', createdAt: '2024-01-03' },
-  { id: 'WST-007', name: 'Kardus', nameEn: 'Cardboard', price: 3750, status: 'active', createdAt: '2024-01-04' },
-  { id: 'WST-008', name: 'Sisa Logam', nameEn: 'Metal Scraps', price: 18000, status: 'active', createdAt: '2024-01-04' },
-];
 
 const nameIcons: Record<string, string> = {
   'Botol Plastik': 'fa-wine-bottle',
@@ -84,6 +64,7 @@ const translations = {
     errorNameExists: 'Jenis sampah sudah ada',
     errorPriceRequired: 'Harga wajib diisi',
     errorPriceHigh: 'Harga terlalu tinggi',
+    yesDelete: 'Ya, Hapus',
   },
   en: {
     pageTitle: 'Waste Types',
@@ -120,6 +101,7 @@ const translations = {
     errorNameExists: 'Waste type already exists',
     errorPriceRequired: 'Price is required',
     errorPriceHigh: 'Price is too high',
+    yesDelete: 'Yes, Delete',
   }
 };
 
@@ -132,12 +114,23 @@ export const WasteTypes = () => {
   const isLangEn = language === 'en';
   const t = translations[language];
   
-  const [wasteTypes, setWasteTypes] = useState<WasteType[]>(initialWasteTypes);
+  const [wasteTypes, setWasteTypes] = useState<WasteType[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showToast, setShowToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const unsubscribe = wasteTypeService.subscribeToWasteTypes((data) => {
+      setWasteTypes(data);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -217,7 +210,7 @@ export const WasteTypes = () => {
     validateField(field, formData[field]);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const isNameValid = validateField('name', formData.name);
@@ -225,32 +218,25 @@ export const WasteTypes = () => {
 
     if (!isNameValid || !isPriceValid) return;
 
-    if (editingId) {
-      setWasteTypes(prev => prev.map(wt => {
-        if (wt.id === editingId) {
-          return {
-            ...wt,
-            name: isLangEn ? formData.name.trim() : wt.name,
-            nameEn: isLangEn ? wt.nameEn : formData.name.trim(),
-            price: parseFloat(formData.price),
-            updatedAt: new Date().toISOString().split('T')[0]
-          };
-        }
-        return wt;
-      }));
-      displayToast(`${formData.name} ${t.successUpdate}`, 'success');
-    } else {
-      const newId = generateNewId();
-      const newWasteType: WasteType = {
-        id: newId,
-        name: isLangEn ? formData.name.trim() : formData.name.trim(),
-        nameEn: isLangEn ? formData.name.trim() : formData.name.trim(),
-        price: parseFloat(formData.price),
-        status: 'active',
-        createdAt: new Date().toISOString().split('T')[0],
-      };
-      setWasteTypes(prev => [newWasteType, ...prev]);
-      displayToast(`${formData.name} ${t.successAdd} ${newId}`, 'success');
+    try {
+      if (editingId) {
+        await wasteTypeService.updateWasteType(editingId, {
+          name: isLangEn ? formData.name.trim() : wasteTypes.find(wt => wt.id === editingId)?.name || formData.name.trim(),
+          nameEn: isLangEn ? wasteTypes.find(wt => wt.id === editingId)?.nameEn || formData.name.trim() : formData.name.trim(),
+          price: parseFloat(formData.price),
+        });
+        displayToast(`${formData.name} ${t.successUpdate}`, 'success');
+      } else {
+        const docId = await wasteTypeService.addWasteType({
+          name: isLangEn ? formData.name.trim() : formData.name.trim(),
+          nameEn: isLangEn ? formData.name.trim() : formData.name.trim(),
+          price: parseFloat(formData.price),
+          status: 'active',
+        });
+        displayToast(`${formData.name} ${t.successAdd} ${docId.slice(0, 8)}`, 'success');
+      }
+    } catch (error) {
+      displayToast('Failed to save waste type', 'error');
     }
 
     resetForm();
@@ -271,29 +257,35 @@ export const WasteTypes = () => {
     setFormData({ name: displayName, price: waste.price.toString() });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const waste = wasteTypes.find(wt => wt.id === id);
     if (!waste) return;
 
-    const displayName = isLangEn ? waste.nameEn : waste.name;
-    if (confirm(`${t.confirmDelete} "${displayName}" (${id})?`)) {
-      setWasteTypes(prev => prev.filter(wt => wt.id !== id));
+    try {
+      await wasteTypeService.deleteWasteType(id);
+      const displayName = isLangEn ? waste.nameEn : waste.name;
       displayToast(`${displayName} ${t.successDelete}`, 'success');
       
       if (editingId === id) {
         resetForm();
       }
+    } catch (error) {
+      displayToast('Failed to delete waste type', 'error');
     }
+    setShowDeleteConfirm(null);
   };
 
-  const handleToggleStatus = (id: string) => {
-    setWasteTypes(prev => prev.map(wt => 
-      wt.id === id ? { ...wt, status: wt.status === 'active' ? 'inactive' : 'active' } : wt
-    ));
+  const handleToggleStatus = async (id: string) => {
     const waste = wasteTypes.find(wt => wt.id === id);
-    if (waste) {
+    if (!waste) return;
+
+    try {
+      await wasteTypeService.toggleStatus(id);
       const displayName = isLangEn ? waste.nameEn : waste.name;
-      displayToast(`${displayName} is now ${waste.status === 'active' ? 'inactive' : 'active'}`, 'success');
+      const newStatus = waste.status === 'active' ? 'inactive' : 'active';
+      displayToast(`${displayName} is now ${newStatus}`, 'success');
+    } catch (error) {
+      displayToast('Failed to update status', 'error');
     }
   };
 
@@ -571,7 +563,7 @@ export const WasteTypes = () => {
                           </button>
                           <button
                             className="wt-action-btn wt-delete-btn"
-                            onClick={() => handleDelete(wt.id)}
+                            onClick={() => setShowDeleteConfirm(wt.id)}
                             title="Delete"
                           >
                             <FontAwesomeIcon icon={faTrash} />
@@ -645,6 +637,35 @@ export const WasteTypes = () => {
               <p>{showToast.message}</p>
             </div>
             <div className="wt-toast-progress"></div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 scale-in-modal">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                <FontAwesomeIcon icon={faTrash} className="text-red-500 text-2xl" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                {t.confirmDelete} "{wasteTypes.find(wt => wt.id === showDeleteConfirm) ? (isLangEn ? wasteTypes.find(wt => wt.id === showDeleteConfirm)?.nameEn : wasteTypes.find(wt => wt.id === showDeleteConfirm)?.name) : ''}"?
+              </h3>
+              <div className="flex gap-3 justify-center mt-4">
+                <button 
+                  className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                  onClick={() => setShowDeleteConfirm(null)}
+                >
+                  {t.cancel}
+                </button>
+                <button 
+                  className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+                  onClick={() => handleDelete(showDeleteConfirm)}
+                >
+                  {t.yesDelete}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

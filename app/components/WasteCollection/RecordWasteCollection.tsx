@@ -1,63 +1,37 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useToast } from '../../context/ToastContext';
 import { AppSidebar } from '../AppSidebar/AppSidebar';
+import { studentService, type Student } from '../../services/students';
+import { wasteTypeService, type WasteType } from '../../services/wasteTypes';
+import { wasteCollectionService, type WasteCollection } from '../../services/wasteCollections';
+import { useAuth } from '../../context/AuthContext';
 import './WasteCollection.css';
 
-interface Student {
-  id: string;
-  studentId: string;
-  name: string;
-  email: string;
-  gradeLevel: string;
-  dateAdded: string;
-}
+const navItems = [
+  { id: 'dashboard', icon: 'fa-home', label: 'Dashboard', route: '/dashboard' },
+  { id: 'students', icon: 'fa-users', label: 'Manage Students', route: '/manage-student' },
+  { id: 'collection', icon: 'fa-trash-alt', label: 'Waste Collection', route: '/waste-collection' },
+  { id: 'reports', icon: 'fa-chart-bar', label: 'Reports & Analytics' },
+  { id: 'settings', icon: 'fa-cog', label: 'Settings' },
+];
 
 interface WasteRecord {
   id: string;
   date: string;
   studentId: string;
   studentName: string;
+  studentGrade?: string;
   wasteType: string;
+  wasteTypeId?: string;
   quantity: number;
   price: number;
+  pricePerKg?: number;
   earnings: number;
+  recordedBy?: string;
+  createdAt?: string;
+  wasteTypeName?: string;
 }
-
-interface WasteTypePrice {
-  type: string;
-  pricePerKg: number;
-  icon: string;
-}
-
-const wasteTypes: WasteTypePrice[] = [
-  { type: 'Plastic Bottles', pricePerKg: 0.50, icon: 'fa-wine-bottle' },
-  { type: 'Paper Waste', pricePerKg: 0.40, icon: 'fa-newspaper' },
-  { type: 'Cans', pricePerKg: 0.50, icon: 'fa-prescription-bottle' },
-  { type: 'E-Waste', pricePerKg: 3.00, icon: 'fa-laptop' },
-  { type: 'Glass', pricePerKg: 0.30, icon: 'fa-wine-glass' },
-  { type: 'Organic', pricePerKg: 0.20, icon: 'fa-apple-alt' },
-];
-
-const initialStudents: Student[] = [
-  { id: '1', studentId: 'STU102', name: 'Alex Smith', email: 'alex.smith@school.edu', gradeLevel: '10', dateAdded: '2024-01-15' },
-  { id: '2', studentId: 'STU105', name: 'Rachel Lee', email: 'rachel.lee@school.edu', gradeLevel: '9', dateAdded: '2024-01-14' },
-  { id: '3', studentId: 'STU109', name: 'Sarah Miller', email: 'sarah.miller@school.edu', gradeLevel: '11', dateAdded: '2024-01-13' },
-  { id: '4', studentId: 'STU107', name: 'Emily Johnson', email: 'emily.johnson@school.edu', gradeLevel: '10', dateAdded: '2024-01-12' },
-  { id: '5', studentId: 'STU103', name: 'Tom Williams', email: 'tom.williams@school.edu', gradeLevel: '12', dateAdded: '2024-01-11' },
-  { id: '6', studentId: 'STU110', name: 'James Brown', email: 'james.brown@school.edu', gradeLevel: '9', dateAdded: '2024-01-10' },
-];
-
-const initialRecords: WasteRecord[] = [
-  { id: 1, date: '2024-04-24', studentId: 'STU102', studentName: 'Alex Smith', wasteType: 'Plastic Bottles', price: 0.50, quantity: 10, earnings: 5.00 },
-  { id: 2, date: '2024-04-20', studentId: 'STU105', studentName: 'Rachel Lee', wasteType: 'Paper Waste', price: 0.40, quantity: 7, earnings: 2.80 },
-  { id: 3, date: '2024-04-19', studentId: 'STU109', studentName: 'Sarah Miller', wasteType: 'Cans', price: 0.50, quantity: 5, earnings: 2.50 },
-  { id: 4, date: '2024-04-18', studentId: 'STU107', studentName: 'Emily Johnson', wasteType: 'Plastic Bottles', price: 0.50, quantity: 8, earnings: 4.00 },
-  { id: 5, date: '2024-04-15', studentId: 'STU103', studentName: 'Tom Williams', wasteType: 'E-Waste', price: 3.00, quantity: 4, earnings: 12.00 },
-  { id: 6, date: '2024-04-14', studentId: 'STU110', studentName: 'James Brown', wasteType: 'Glass', price: 0.30, quantity: 15, earnings: 4.50 },
-  { id: 7, date: '2024-04-13', studentId: 'STU102', studentName: 'Alex Smith', wasteType: 'Paper Waste', price: 0.40, quantity: 12, earnings: 4.80 },
-  { id: 8, date: '2024-04-12', studentId: 'STU105', studentName: 'Rachel Lee', wasteType: 'Cans', price: 0.50, quantity: 9, earnings: 4.50 },
-];
 
 const translations = {
   en: {
@@ -155,12 +129,15 @@ const translations = {
 export function RecordWasteCollection() {
   const navigate = useNavigate();
   const { showToast, toasts } = useToast();
+  const { user } = useAuth();
   
   const [language, setLanguage] = useState<'en' | 'id'>('en');
+  const isLangEn = language === 'en';
   const t = translations[language];
   
-  const [students] = useState<Student[]>(initialStudents);
-  const [records, setRecords] = useState<WasteRecord[]>(initialRecords);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [records, setRecords] = useState<WasteRecord[]>([]);
+  const [wasteTypesList, setWasteTypesList] = useState<WasteType[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -168,14 +145,58 @@ export function RecordWasteCollection() {
   const [editingRecord, setEditingRecord] = useState<WasteRecord | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [jumpToPage, setJumpToPage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   
   const today = new Date().toISOString().split('T')[0];
   
+  useEffect(() => {
+    setIsLoading(true);
+    
+    const unsubStudents = studentService.subscribeToStudents((data) => {
+      setStudents(data);
+    });
+    
+    const unsubWasteTypes = wasteTypeService.subscribeToActiveWasteTypes((data) => {
+      setWasteTypesList(data);
+    });
+    
+    const unsubRecords = wasteCollectionService.subscribeToCollections((data) => {
+      const mapped: WasteRecord[] = data.map(d => ({
+        id: d.id,
+        date: d.date,
+        studentId: d.studentId,
+        studentName: d.studentName,
+        studentGrade: d.studentGrade,
+        wasteType: d.wasteTypeName,
+        wasteTypeId: d.wasteTypeId,
+        quantity: d.quantity,
+        price: d.pricePerKg,
+        earnings: d.earnings,
+        recordedBy: d.recordedBy,
+        createdAt: d.createdAt,
+        wasteTypeName: d.wasteTypeName
+      }));
+      setRecords(mapped);
+      setIsLoading(false);
+    });
+    
+    return () => {
+      unsubStudents();
+      unsubWasteTypes();
+      unsubRecords();
+    };
+  }, []);
+
+  const getWasteTypeInfo = (wasteTypeName: string): { pricePerKg: number } => {
+    const found = wasteTypesList.find(wt => wt.nameEn === wasteTypeName || wt.name === wasteTypeName);
+    return { pricePerKg: found ? found.price : 0 };
+  };
+
   const [formData, setFormData] = useState({
     studentId: '',
     date: today,
-    wasteType: 'Plastic Bottles',
-    price: 0.50,
+    wasteType: '',
+    price: 0,
     quantity: 1,
   });
   
@@ -187,17 +208,13 @@ export function RecordWasteCollection() {
     quantity: '',
   });
 
-  const getWasteTypeInfo = (wasteType: string): WasteTypePrice => {
-    return wasteTypes.find(w => w.type === wasteType) || wasteTypes[0];
-  };
-
   const filteredRecords = useMemo(() => {
     if (!searchQuery.trim()) return records;
     const query = searchQuery.toLowerCase();
     return records.filter(r => 
       r.studentName.toLowerCase().includes(query) ||
       r.studentId.toLowerCase().includes(query) ||
-      r.wasteType.toLowerCase().includes(query) ||
+      (r.wasteTypeName || r.wasteType || '').toLowerCase().includes(query) ||
       r.date.includes(query)
     );
   }, [records, searchQuery]);
@@ -316,7 +333,7 @@ export function RecordWasteCollection() {
       showToast('success', t.updatedSuccess);
     } else {
       const newRecord: WasteRecord = {
-        id: Date.now(),
+        id: `rec-${Date.now()}`,
         date: formData.date,
         studentId: selectedStudent?.studentId || '',
         studentName: selectedStudent?.name || '',
@@ -540,9 +557,9 @@ export function RecordWasteCollection() {
                 onBlur={(e) => validateField('wasteType', e.target.value)}
                 className={`rwc-input rwc-select ${formErrors.wasteType ? 'error' : formData.wasteType ? 'valid' : ''}`}
               >
-                {wasteTypes.map(wt => (
-                  <option key={wt.type} value={wt.type}>
-                    {wt.type}
+                {wasteTypesList.map(wt => (
+                  <option key={wt.id} value={wt.nameEn || wt.name}>
+                    {isLangEn ? wt.nameEn : wt.name}
                   </option>
                 ))}
               </select>
@@ -699,8 +716,7 @@ export function RecordWasteCollection() {
                         </td>
                         <td>
                           <span className="rwc-waste-badge">
-                            <i className={`fas ${getWasteTypeInfo(record.wasteType).icon}`}></i>
-                            {highlightMatch(record.wasteType)}
+                            {highlightMatch(record.wasteType || record.wasteTypeName || '')}
                           </span>
                         </td>
                         <td className="rwc-price-cell">${record.price.toFixed(2)}</td>
@@ -806,7 +822,7 @@ export function RecordWasteCollection() {
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">{t.deleteConfirm} {records.find(r => r.id === Number(showDeleteConfirm))?.studentName}?</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">{t.deleteConfirm} {records.find(r => r.id === showDeleteConfirm)?.studentName}?</h3>
               <div className="flex gap-3 justify-center mt-4">
                 <button 
                   className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
@@ -816,7 +832,7 @@ export function RecordWasteCollection() {
                 </button>
                 <button 
                   className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
-                  onClick={() => handleDelete(Number(showDeleteConfirm))}
+                  onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm)}
                 >
                   {t.yes}
                 </button>

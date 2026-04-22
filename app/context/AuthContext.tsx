@@ -1,14 +1,12 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { AuthContextType, AuthUser, AuthError, LoginCredentials } from '../types/auth';
-import { authService } from '../services/auth';
+import { firebaseAuthService } from '../services/firebaseAuth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
 }
-
-const STORAGE_KEY = 'recycle_auth';
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -17,42 +15,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [error, setError] = useState<AuthError | null>(null);
 
   useEffect(() => {
-    const storedAuth = localStorage.getItem(STORAGE_KEY);
-    if (storedAuth) {
-      try {
-        const { token } = JSON.parse(storedAuth);
-        authService.validateToken(token).then((isValid) => {
-          if (isValid) {
-            authService.getUserFromToken(token).then((userData) => {
-              if (userData) {
-                setUser(userData);
-                setIsAuthenticated(true);
-              }
-            });
-          }
-          setIsLoading(false);
-        });
-      } catch {
-        setIsLoading(false);
+    const unsubscribe = firebaseAuthService.onAuthChange((firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        setIsAuthenticated(true);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
       }
-    } else {
       setIsLoading(false);
-    }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await authService.login(credentials);
-      setUser(response.user);
+      const firebaseUser = await firebaseAuthService.login(credentials);
+      setUser(firebaseUser);
       setIsAuthenticated(true);
-      if (credentials.rememberMe) {
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ token: response.token, user: response.user })
-        );
-      }
     } catch (err) {
       const authError = err as AuthError;
       setError(authError);
@@ -62,12 +45,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []);
 
-  const logout = useCallback(() => {
-    authService.logout().then(() => {
+  const logout = useCallback(async () => {
+    try {
+      await firebaseAuthService.logout();
+    } finally {
       setUser(null);
       setIsAuthenticated(false);
-      localStorage.removeItem(STORAGE_KEY);
-    });
+    }
   }, []);
 
   const clearError = useCallback(() => {
