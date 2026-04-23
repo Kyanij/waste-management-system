@@ -1184,3 +1184,99 @@
     font-size: 1.75rem;
   }
 }
+
+/* Price Input with Floating Label */
+.rwc-price-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.rwc-price-input-wrapper .rwc-currency-symbol {
+  position: absolute;
+  left: 1rem;
+  color: #16a34a;
+  font-weight: 700;
+  font-size: 1rem;
+  z-index: 1;
+}
+
+.rwc-price-input-wrapper input {
+  padding-left: 3rem;
+}
+
+.rwc-price-input-wrapper label.rwc-floating-label.currency {
+  left: 3rem;
+}
+
+.rwc-price-input-wrapper input:focus ~ label.rwc-floating-label.currency,
+.rwc-price-input-wrapper input:not(:placeholder-shown) ~ label.rwc-floating-label.currency {
+  top: 0;
+  transform: translateY(-50%) scale(0.85);
+  background: white;
+  padding: 0 0.5rem;
+  color: #16a34a;
+  font-weight: 600;
+}
+
+/* Quantity Unit Label */
+.rwc-qty-unit {
+  position: absolute;
+  right: 3rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Action Buttons */
+.rwc-action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.rwc-edit-btn {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  background: #fef3c7;
+  border: none;
+  color: #d97706;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rwc-edit-btn:hover {
+  background: #fde68a;
+  transform: scale(1.05);
+}
+
+.rwc-delete-btn {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  background: #fee2e2;
+  border: none;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rwc-delete-btn:hover {
+  background: #fecaca;
+  transform: scale(1.05);
+}
+
+/* Currency Display in Table */
+.rwc-currency {
+  font-weight: 600;
+  color: #16a34a;
+  margin-right: 0.25rem;
+}

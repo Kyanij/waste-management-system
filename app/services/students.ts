@@ -22,7 +22,7 @@ export interface Student {
   id: string;
   studentId: string;
   name: string;
-  email: string;
+  gender: string;
   gradeLevel: string;
   dateAdded: string;
   createdAt?: Timestamp | null;
@@ -129,7 +129,7 @@ function mapDocToStudent(doc: any): Student {
     id: doc.id,
     studentId: data.studentId || '',
     name: data.name || '',
-    email: data.email || '',
+    gender: data.gender || '',
     gradeLevel: data.gradeLevel || '',
     dateAdded: data.dateAdded || '',
     createdAt: data.createdAt || null

@@ -6,6 +6,7 @@ import {
   faCalendarAlt
 } from '@fortawesome/free-solid-svg-icons';
 import { useI18n } from '../../lib/i18n';
+import { useToast } from '../../context/ToastContext';
 import { AppSidebar } from '../AppSidebar/AppSidebar';
 import { wasteTypeService, type WasteType } from '../../services/wasteTypes';
 import './WasteTypes.css';
@@ -111,6 +112,7 @@ const formatCurrency = (amount: number): string => {
 
 export const WasteTypes = () => {
   const { language, setLanguage } = useI18n();
+  const { showToast, toasts } = useToast();
   const isLangEn = language === 'en';
   const t = translations[language];
   
@@ -119,7 +121,6 @@ export const WasteTypes = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [showToast, setShowToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -225,7 +226,7 @@ export const WasteTypes = () => {
           nameEn: isLangEn ? wasteTypes.find(wt => wt.id === editingId)?.nameEn || formData.name.trim() : formData.name.trim(),
           price: parseFloat(formData.price),
         });
-        displayToast(`${formData.name} ${t.successUpdate}`, 'success');
+        showToast('success', `${formData.name} ${t.successUpdate}`);
       } else {
         const docId = await wasteTypeService.addWasteType({
           name: isLangEn ? formData.name.trim() : formData.name.trim(),
@@ -233,10 +234,10 @@ export const WasteTypes = () => {
           price: parseFloat(formData.price),
           status: 'active',
         });
-        displayToast(`${formData.name} ${t.successAdd} ${docId.slice(0, 8)}`, 'success');
+        showToast('success', `${formData.name} ${t.successAdd} ${docId.slice(0, 8)}`);
       }
     } catch (error) {
-      displayToast('Failed to save waste type', 'error');
+      showToast('error', 'Failed to save waste type');
     }
 
     resetForm();
@@ -264,13 +265,13 @@ export const WasteTypes = () => {
     try {
       await wasteTypeService.deleteWasteType(id);
       const displayName = isLangEn ? waste.nameEn : waste.name;
-      displayToast(`${displayName} ${t.successDelete}`, 'success');
+      showToast('success', `${displayName} ${t.successDelete}`);
       
       if (editingId === id) {
         resetForm();
       }
     } catch (error) {
-      displayToast('Failed to delete waste type', 'error');
+      showToast('error', 'Failed to delete waste type');
     }
     setShowDeleteConfirm(null);
   };
@@ -283,15 +284,10 @@ export const WasteTypes = () => {
       await wasteTypeService.toggleStatus(id);
       const displayName = isLangEn ? waste.nameEn : waste.name;
       const newStatus = waste.status === 'active' ? 'inactive' : 'active';
-      displayToast(`${displayName} is now ${newStatus}`, 'success');
+      showToast('success', `${displayName} is now ${newStatus}`);
     } catch (error) {
-      displayToast('Failed to update status', 'error');
+      showToast('error', 'Failed to update status');
     }
-  };
-
-  const displayToast = (message: string, type: 'success' | 'error') => {
-    setShowToast({ message, type });
-    setTimeout(() => setShowToast(null), 3000);
   };
 
   const getIcon = (name: string): string => {
@@ -494,17 +490,16 @@ export const WasteTypes = () => {
             <table className="wt-table">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Nama / Name</th>
-                  <th>Harga / Price</th>
+                  <th>{isLangEn ? 'Name' : 'Nama'}</th>
+                  <th>{isLangEn ? 'Price' : 'Harga'}</th>
                   <th>Status</th>
-                  <th>Aksi / Actions</th>
+                  <th>{isLangEn ? 'Actions' : 'Aksi'}</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedWasteTypes.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>
+                    <td colSpan={4}>
                       <div className="wt-empty-state show">
                         <div className="wt-empty-icon">
                           <FontAwesomeIcon icon={faTrashCan} />
@@ -521,9 +516,6 @@ export const WasteTypes = () => {
                       className="wt-table-row"
                       style={{ '--row-index': index } as React.CSSProperties}
                     >
-                      <td>
-                        <span className="wt-id-badge">{wt.id}</span>
-                      </td>
                       <td>
                         <div className="wt-name-cell">
                           <div className="wt-name-icon">
@@ -626,20 +618,20 @@ export const WasteTypes = () => {
         </div>
       </div>
 
-      {showToast && (
-        <div className="wt-toast-container">
-          <div className={`wt-toast ${showToast.type}`}>
+      <div className="wt-toast-container">
+        {toasts.map((toast) => (
+          <div key={toast.id} className={`wt-toast ${toast.type}`}>
             <div className="wt-toast-icon">
-              <FontAwesomeIcon icon={showToast.type === 'success' ? faCheckCircle : faTimesCircle} />
+              <FontAwesomeIcon icon={toast.type === 'success' ? faCheckCircle : faTimesCircle} />
             </div>
             <div className="wt-toast-content">
-              <h4>{showToast.type === 'success' ? 'Success!' : 'Error!'}</h4>
-              <p>{showToast.message}</p>
+              <h4>{toast.type === 'success' ? 'Success!' : 'Error!'}</h4>
+              <p>{toast.message}</p>
             </div>
             <div className="wt-toast-progress"></div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>

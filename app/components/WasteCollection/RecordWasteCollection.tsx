@@ -196,8 +196,8 @@ export function RecordWasteCollection() {
     studentId: '',
     date: today,
     wasteType: '',
-    price: 0,
-    quantity: 1,
+    price: '',
+    quantity: '',
   });
   
   const [formErrors, setFormErrors] = useState({
@@ -277,12 +277,12 @@ export function RecordWasteCollection() {
       setFormData(prev => ({ 
         ...prev, 
         [name]: value,
-        price: wt.pricePerKg,
+        price: wt.pricePerKg > 0 ? String(wt.pricePerKg) : '',
       }));
     } else {
       setFormData(prev => ({ 
         ...prev, 
-        [name]: name === 'price' || name === 'quantity' ? parseFloat(value) || 0 : value 
+        [name]: value
       }));
     }
     
@@ -292,8 +292,9 @@ export function RecordWasteCollection() {
   };
 
   const handleQuantityChange = (delta: number) => {
-    const newQuantity = Math.max(0.1, formData.quantity + delta);
-    setFormData(prev => ({ ...prev, quantity: newQuantity }));
+    const currentQty = parseFloat(formData.quantity) || 0;
+    const newQuantity = Math.max(0.1, currentQty + delta);
+    setFormData(prev => ({ ...prev, quantity: String(newQuantity) }));
     if (formErrors.quantity) {
       setFormErrors(prev => ({ ...prev, quantity: '' }));
     }
@@ -313,36 +314,34 @@ export function RecordWasteCollection() {
     }
 
     const selectedStudent = students.find(s => s.id === formData.studentId);
-    const earnings = formData.quantity * formData.price;
+    const quantity = parseFloat(formData.quantity) || 0;
+    const price = parseFloat(formData.price) || 0;
+    const earnings = quantity * price;
 
     if (editingRecord) {
-      setRecords(prev => prev.map(r => 
-        r.id === editingRecord.id 
-          ? { 
-              ...r, 
-              date: formData.date,
-              studentId: selectedStudent?.studentId || r.studentId,
-              studentName: selectedStudent?.name || r.studentName,
-              wasteType: formData.wasteType,
-              quantity: formData.quantity,
-              price: formData.price,
-              earnings: earnings
-            }
-          : r
-      ));
-      showToast('success', t.updatedSuccess);
-    } else {
-      const newRecord: WasteRecord = {
-        id: `rec-${Date.now()}`,
+      wasteCollectionService.updateCollection(editingRecord.id, {
         date: formData.date,
         studentId: selectedStudent?.studentId || '',
         studentName: selectedStudent?.name || '',
-        wasteType: formData.wasteType,
-        quantity: formData.quantity,
-        price: formData.price,
+        studentGrade: selectedStudent?.gradeLevel || '',
+        wasteTypeName: formData.wasteType,
+        quantity: quantity,
+        pricePerKg: price,
         earnings: earnings,
-      };
-      setRecords(prev => [newRecord, ...prev]);
+      });
+      showToast('success', t.updatedSuccess);
+    } else {
+      wasteCollectionService.addCollection({
+        date: formData.date,
+        studentId: selectedStudent?.studentId || '',
+        studentName: selectedStudent?.name || '',
+        studentGrade: selectedStudent?.gradeLevel || '',
+        wasteTypeId: wasteTypesList.find(wt => wt.nameEn === formData.wasteType || wt.name === formData.wasteType)?.id || '',
+        wasteTypeName: formData.wasteType,
+        quantity: quantity,
+        pricePerKg: price,
+        earnings: earnings,
+      }, user?.uid || '');
       showToast('success', t.addedSuccess);
     }
 
@@ -350,7 +349,7 @@ export function RecordWasteCollection() {
   };
 
   const resetForm = () => {
-    setFormData({ studentId: '', date: today, wasteType: 'Plastic Bottles', price: 0.50, quantity: 1 });
+    setFormData({ studentId: '', date: today, wasteType: '', price: '', quantity: '' });
     setFormErrors({ studentId: '', date: '', wasteType: '', price: '', quantity: '' });
     setEditingRecord(null);
     setIsFormOpen(false);
@@ -363,20 +362,17 @@ export function RecordWasteCollection() {
       studentId: student?.id || '',
       date: record.date,
       wasteType: record.wasteType,
-      price: record.price,
-      quantity: record.quantity,
+      price: String(record.price),
+      quantity: String(record.quantity),
     });
     setIsFormOpen(true);
     setFormErrors({ studentId: '', date: '', wasteType: '', price: '', quantity: '' });
   };
 
   const handleDelete = (id: string) => {
-    setRecords(prev => prev.filter(r => r.id !== id));
+    wasteCollectionService.deleteCollection(id);
     showToast('success', t.deletedSuccess);
     setShowDeleteConfirm(null);
-    if (paginatedRecords.length === 1 && currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
-    }
   };
 
   const handleNavClick = (item: typeof navItems[0]) => {
@@ -420,7 +416,7 @@ export function RecordWasteCollection() {
   };
 
   const currentPrice = getWasteTypeInfo(formData.wasteType).pricePerKg;
-  const calculatedEarnings = formData.quantity * currentPrice;
+  const calculatedEarnings = parseFloat(formData.quantity || '0') * currentPrice;
 
   const formatCurrentDate = () => {
     return new Date().toLocaleDateString('en-US', { 
@@ -581,20 +577,18 @@ export function RecordWasteCollection() {
 
             {/* Price */}
             <div className="rwc-input-wrapper">
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">$</span>
-                <input 
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                  onBlur={(e) => validateField('price', e.target.value)}
-                  step="0.01"
-                  min="0.01"
-                  className={`rwc-input pl-8 ${formErrors.price ? 'error' : formData.price ? 'valid' : ''}`}
-                />
-              </div>
-              <label className="rwc-floating-label" style={{ left: '2.5rem' }}>{t.price} ($)</label>
+              <input 
+                type="number"
+                name="price"
+                value={formData.price}
+                onChange={handleInputChange}
+                onBlur={(e) => validateField('price', e.target.value)}
+                step="100"
+                min="100"
+                placeholder=" "
+                className={`rwc-input ${formErrors.price ? 'error' : formData.price ? 'valid' : ''}`}
+              />
+              <label className="rwc-floating-label">{t.price}</label>
               {formErrors.price && (
                 <div className="rwc-error-msg show">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -607,25 +601,17 @@ export function RecordWasteCollection() {
 
             {/* Quantity */}
             <div className="rwc-input-wrapper">
-              <div className="rwc-qty-control">
-                <input 
-                  type="number"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  onBlur={(e) => validateField('quantity', e.target.value)}
-                  step="0.1"
-                  min="0.1"
-                  className={`rwc-input pr-12 ${formErrors.quantity ? 'error' : formData.quantity ? 'valid' : ''}`}
-                />
-                <span className="absolute right-12 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">{t.kg}</span>
-                <button type="button" className="rwc-qty-btn up" onClick={() => handleQuantityChange(0.1)}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="18 15 12 9 6 15"/></svg>
-                </button>
-                <button type="button" className="rwc-qty-btn down" onClick={() => handleQuantityChange(-0.1)}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
+              <input 
+                type="number"
+                name="quantity"
+                value={formData.quantity}
+                onChange={handleInputChange}
+                onBlur={(e) => validateField('quantity', e.target.value)}
+                step="0.1"
+                min="0.1"
+                placeholder=" "
+                className={`rwc-input ${formErrors.quantity ? 'error' : formData.quantity ? 'valid' : ''}`}
+              />
               <label className="rwc-floating-label">{t.quantity}</label>
               {formErrors.quantity && (
                 <div className="rwc-error-msg show">
@@ -719,22 +705,38 @@ export function RecordWasteCollection() {
                             {highlightMatch(record.wasteType || record.wasteTypeName || '')}
                           </span>
                         </td>
-                        <td className="rwc-price-cell">${record.price.toFixed(2)}</td>
-                        <td>
-                          <span className="font-semibold text-emerald-600">{record.quantity}</span> {t.kg}
-                        </td>
-                        <td className="rwc-earnings-cell">${record.earnings.toFixed(2)}</td>
+                        <td className="rwc-price-cell">
+                            {record.price ? record.price.toLocaleString('id-ID') : '0'}
+                          </td>
+                          <td>
+                            <span className="font-semibold text-emerald-600">{record.quantity}</span> {t.kg}
+                          </td>
+                          <td className="rwc-earnings-cell">
+                            {record.earnings ? record.earnings.toLocaleString('id-ID') : '0'}
+                          </td>
                         <td className="text-center">
-                          <button 
-                            className="rwc-delete-btn"
-                            onClick={() => setShowDeleteConfirm(String(record.id))}
-                            title={t.actions}
-                          >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="3 6 5 6 21 6"/>
-                              <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                            </svg>
-                          </button>
+                          <div className="rwc-action-buttons">
+                            <button 
+                              className="rwc-edit-btn"
+                              onClick={() => handleEdit(record)}
+                              title={t.editEntry}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                            </button>
+                            <button 
+                              className="rwc-delete-btn"
+                              onClick={() => setShowDeleteConfirm(String(record.id))}
+                              title={t.actions}
+                            >
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                              </svg>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

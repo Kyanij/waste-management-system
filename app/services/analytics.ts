@@ -64,6 +64,8 @@ export const analyticsService = {
     const startDateStr = startDate.toISOString().split('T')[0];
     const nowDateStr = now.toISOString().split('T')[0];
     
+    console.log('Analytics date range:', startDateStr, 'to', nowDateStr);
+    
     let totalWeight = 0;
     let totalEarnings = 0;
     let totalRecords = 0;
@@ -75,7 +77,17 @@ export const analyticsService = {
       const data = doc.data();
       const date = data.date;
       
-      if (date >= startDateStr && date <= nowDateStr) {
+      // Handle both string dates and Firestore timestamps
+      let collectionDate: string;
+      if (typeof date === 'string') {
+        collectionDate = date.split('T')[0]; // Handle ISO format if present
+      } else if (date && date.toDate) {
+        collectionDate = date.toDate().toISOString().split('T')[0];
+      } else {
+        collectionDate = String(date || '');
+      }
+      
+      if (collectionDate >= startDateStr && collectionDate <= nowDateStr) {
         const qty = Number(data.quantity) || 0;
         const earn = Number(data.earnings) || 0;
         
@@ -84,7 +96,7 @@ export const analyticsService = {
         totalRecords++;
         
         // Daily aggregation
-        dailyMap.set(date, (dailyMap.get(date) || 0) + qty);
+        dailyMap.set(collectionDate, (dailyMap.get(collectionDate) || 0) + qty);
         
         // Track students
         if (!studentMap.has(data.studentId)) {

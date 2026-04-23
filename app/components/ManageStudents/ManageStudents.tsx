@@ -43,14 +43,15 @@ export function ManageStudents() {
   const [formData, setFormData] = useState({
     name: '',
     studentId: '',
-    email: '',
-    gradeLevel: '9',
+    gender: '',
+    gradeLevel: '',
   });
   
   const [formErrors, setFormErrors] = useState({
     name: '',
     studentId: '',
-    email: '',
+    gender: '',
+    gradeLevel: '',
   });
 
   const labels = {
@@ -66,14 +67,17 @@ export function ManageStudents() {
     columnDate: isLangEn ? 'Date Added' : 'Tanggal Ditambahkan',
     columnName: isLangEn ? 'Student Name' : 'Nama Siswa',
     columnId: isLangEn ? 'Student ID' : 'ID Siswa',
-    columnEmail: isLangEn ? 'Email' : 'Email',
+    columnEmail: isLangEn ? 'Gender' : 'Jenis Kelamin',
     columnGrade: isLangEn ? 'Grade Level' : 'Tingkat Kelas',
     columnActions: isLangEn ? 'Actions' : 'Tindakan',
     gradeLabel: isLangEn ? 'Grade' : 'Kelas',
     namePlaceholder: isLangEn ? 'Enter student name' : 'Masukkan nama siswa',
     idPlaceholder: isLangEn ? 'Enter student ID' : 'Masukkan ID siswa',
-    emailPlaceholder: isLangEn ? 'Enter email address' : 'Masukkan alamat email',
+    genderPlaceholder: isLangEn ? 'Select gender' : 'Pilih jenis kelamin',
+    gradePlaceholder: isLangEn ? 'Enter grade (e.g., 7.1)' : 'Masukkan kelas (contoh: 7.1)',
     selectGrade: isLangEn ? 'Select grade' : 'Pilih kelas',
+    genderMale: isLangEn ? 'Male' : 'Laki-laki',
+    genderFemale: isLangEn ? 'Female' : 'Perempuan',
     previous: isLangEn ? 'Previous' : 'Sebelumnya',
     next: isLangEn ? 'Next' : 'Selanjutnya',
     showing: isLangEn ? 'Showing' : 'Menampilkan',
@@ -86,7 +90,10 @@ export function ManageStudents() {
     studentUpdated: isLangEn ? 'Student updated successfully' : 'Siswa berhasil diperbarui',
     studentDeleted: isLangEn ? 'Student deleted successfully' : 'Siswa berhasil dihapus',
     duplicateId: isLangEn ? 'Student ID already exists' : 'ID siswa sudah ada',
+    duplicateIdWithId: isLangEn ? 'Student ID already exists with student' : 'ID siswa',
     invalidEmail: isLangEn ? 'Please enter a valid email' : 'Masukkan email yang valid',
+    invalidGrade: isLangEn ? 'Grade must be in format X.Y (e.g., 7.1, 10.2)' : 'Kelas harus dalam format X.Y (contoh: 7.1, 10.2)',
+    invalidStudentId: isLangEn ? 'Student ID must be alphanumeric (no spaces)' : 'ID siswa harus alphanumeric (tanpa spasi)',
     required: isLangEn ? 'This field is required' : 'Bidang ini wajib diisi',
   };
 
@@ -96,7 +103,7 @@ export function ManageStudents() {
     return students.filter(s => 
       s.name.toLowerCase().includes(query) ||
       s.studentId.toLowerCase().includes(query) ||
-      s.email.toLowerCase().includes(query)
+      (s.gender && s.gender.toLowerCase().includes(query))
     );
   }, [students, searchQuery]);
 
@@ -106,13 +113,18 @@ export function ManageStudents() {
     return filteredStudents.slice(start, start + itemsPerPage);
   }, [filteredStudents, currentPage, itemsPerPage]);
 
-  const validateEmail = (email: string) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
+  const validateGrade = (grade: string) => {
+    const re = /^\d\.\d$/;
+    return re.test(grade);
+  };
+
+  const validateStudentId = (studentId: string) => {
+    const re = /^[A-Z0-9]+$/;
+    return re.test(studentId);
   };
 
   const validateForm = useCallback(() => {
-    const errors = { name: '', studentId: '', email: '' };
+    const errors = { name: '', studentId: '', gender: '', gradeLevel: '' };
     let isValid = true;
 
     if (!formData.name.trim()) {
@@ -122,19 +134,26 @@ export function ManageStudents() {
     if (!formData.studentId.trim()) {
       errors.studentId = labels.required;
       isValid = false;
-    }
-    if (!formData.email.trim()) {
-      errors.email = labels.required;
+    } else if (!validateStudentId(formData.studentId)) {
+      errors.studentId = labels.invalidStudentId;
       isValid = false;
-    } else if (!validateEmail(formData.email)) {
-      errors.email = labels.invalidEmail;
+    }
+    if (!formData.gender) {
+      errors.gender = labels.required;
+      isValid = false;
+    }
+    if (!formData.gradeLevel.trim()) {
+      errors.gradeLevel = labels.required;
+      isValid = false;
+    } else if (!validateGrade(formData.gradeLevel)) {
+      errors.gradeLevel = labels.invalidGrade;
       isValid = false;
     }
 
     if (!editingStudent) {
       const duplicate = students.find(s => s.studentId === formData.studentId);
       if (duplicate) {
-        errors.studentId = labels.duplicateId;
+        errors.studentId = `${labels.duplicateIdWithId} ${duplicate.name} (${duplicate.studentId})`;
         isValid = false;
       }
     }
@@ -145,7 +164,27 @@ export function ManageStudents() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    let processedValue = value;
+    
+    if (name === 'name') {
+      processedValue = value.toUpperCase();
+    } else if (name === 'studentId') {
+      processedValue = value.toUpperCase().replace(/\s/g, '');
+    } else if (name === 'gradeLevel') {
+      processedValue = value.replace(/[^0-9.]/g, '');
+      const parts = processedValue.split('.');
+      if (parts.length > 2) {
+        processedValue = parts[0] + '.' + parts[1];
+      }
+      if (parts[0].length > 2) {
+        processedValue = parts[0].slice(0, 2) + '.' + (parts[1] || '');
+      }
+      if (parts[1] && parts[1].length > 1) {
+        processedValue = parts[0] + '.' + parts[1].slice(0, 1);
+      }
+    }
+    
+    setFormData(prev => ({ ...prev, [name]: processedValue }));
     if (formErrors[name as keyof typeof formErrors]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -159,17 +198,17 @@ export function ManageStudents() {
     try {
       if (editingStudent) {
         await studentService.updateStudent(editingStudent.id, {
-          name: formData.name,
-          studentId: formData.studentId,
-          email: formData.email,
+          name: formData.name.toUpperCase(),
+          studentId: formData.studentId.toUpperCase(),
+          gender: formData.gender,
           gradeLevel: formData.gradeLevel,
         });
         showToast('success', labels.studentUpdated);
       } else {
         await studentService.addStudent({
-          name: formData.name,
-          studentId: formData.studentId,
-          email: formData.email,
+          name: formData.name.toUpperCase(),
+          studentId: formData.studentId.toUpperCase(),
+          gender: formData.gender,
           gradeLevel: formData.gradeLevel,
           dateAdded: new Date().toISOString().split('T')[0],
         });
@@ -188,11 +227,11 @@ export function ManageStudents() {
     setFormData({
       name: student.name,
       studentId: student.studentId,
-      email: student.email,
+      gender: student.gender || '',
       gradeLevel: student.gradeLevel,
     });
     setIsFormOpen(true);
-    setFormErrors({ name: '', studentId: '', email: '' });
+    setFormErrors({ name: '', studentId: '', gender: '', gradeLevel: '' });
   };
 
   const handleDelete = async (id: string) => {
@@ -212,8 +251,8 @@ export function ManageStudents() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', studentId: '', email: '', gradeLevel: '9' });
-    setFormErrors({ name: '', studentId: '', email: '' });
+    setFormData({ name: '', studentId: '', gender: '', gradeLevel: '' });
+    setFormErrors({ name: '', studentId: '', gender: '', gradeLevel: '' });
     setEditingStudent(null);
     setIsFormOpen(false);
   };
@@ -356,31 +395,30 @@ export function ManageStudents() {
                 <label htmlFor="studentId" className="ms-floating-label">{labels.columnId}</label>
               </div>
               <div className="ms-input-wrapper">
-                <input 
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
+                <select 
+                  id="gender"
+                  name="gender"
+                  value={formData.gender}
                   onChange={handleInputChange}
-                  placeholder=" "
-                  className={`ms-input ${formErrors.email ? 'error' : formData.email ? 'valid' : ''}`}
-                />
-                <label htmlFor="email" className="ms-floating-label">{labels.columnEmail}</label>
+                  className={`ms-input ms-select ${formErrors.gender ? 'error' : formData.gender ? 'valid' : ''}`}
+                >
+                  <option value="" disabled></option>
+                  <option value="Male">{labels.genderMale}</option>
+                  <option value="Female">{labels.genderFemale}</option>
+                </select>
+                <label htmlFor="gender" className="ms-floating-label" style={{ top: '0', transform: 'translateY(-50%) scale(0.85)', background: 'white', padding: '0 0.5rem', color: '#16a34a', fontWeight: '600' }}>{labels.columnEmail}</label>
               </div>
               <div className="ms-input-wrapper">
-                <select 
+                <input 
+                  type="text"
                   id="gradeLevel"
                   name="gradeLevel"
                   value={formData.gradeLevel}
                   onChange={handleInputChange}
-                  className="ms-input ms-select"
-                >
-                  <option value="9">Grade 9</option>
-                  <option value="10">Grade 10</option>
-                  <option value="11">Grade 11</option>
-                  <option value="12">Grade 12</option>
-                </select>
-                <label htmlFor="gradeLevel" className="ms-floating-label" style={{ top: '0', transform: 'translateY(-50%) scale(0.85)', background: 'white', padding: '0 0.5rem', color: '#16a34a', fontWeight: '600' }}>{labels.columnGrade}</label>
+                  placeholder=" "
+                  className={`ms-input ${formErrors.gradeLevel ? 'error' : formData.gradeLevel ? 'valid' : ''}`}
+                />
+                <label htmlFor="gradeLevel" className="ms-floating-label">{labels.gradePlaceholder}</label>
               </div>
               <div className="ms-form-actions">
                 <button type="button" className="ms-btn ms-btn-secondary" onClick={resetForm}>
@@ -456,9 +494,9 @@ export function ManageStudents() {
                           </div>
                         </td>
                         <td className="ms-id-cell">{highlightMatch(student.studentId)}</td>
-                        <td>{highlightMatch(student.email)}</td>
+                        <td>{highlightMatch(student.gender || '')}</td>
                         <td>
-                          <span className="ms-grade-badge">Grade {student.gradeLevel}</span>
+                          <span className="ms-grade-badge">{student.gradeLevel}</span>
                         </td>
                         <td>
                           <div className="ms-action-buttons">

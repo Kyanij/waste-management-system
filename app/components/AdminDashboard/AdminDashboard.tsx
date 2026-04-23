@@ -110,6 +110,7 @@ export function AdminDashboard() {
     thisMonth: isLangEn ? 'This Month' : 'Bulan Ini',
     thisSemester: isLangEn ? 'This Semester' : 'Semester Ini',
     custom: isLangEn ? 'Custom Range' : 'Rentang Khusus',
+    apply: isLangEn ? 'Apply' : 'Terapkan',
   };
 
   const formatCurrentDate = () => {
@@ -187,6 +188,18 @@ export function AdminDashboard() {
                   onChange={(e) => setCustomTo(e.target.value)}
                   className="admin-date-input"
                 />
+                <button 
+                  className="admin-apply-btn"
+                  onClick={() => {
+                    if (customFrom && customTo) {
+                      analyticsService.getDashboardStats('month').then((stats) => {
+                        setDashboardStats(stats);
+                      });
+                    }
+                  }}
+                >
+                  {labels.apply}
+                </button>
               </div>
             )}
 </div>
