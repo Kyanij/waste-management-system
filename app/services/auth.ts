@@ -8,9 +8,12 @@ import type { LoginCredentials, AuthResponse, AuthUser, AuthError } from '../typ
 
 const MOCK_DELAY_MS = 1500;
 
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@recycle.com';
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || '';
+
 const MOCK_ADMIN_USER: AuthUser = {
   id: 'admin-001',
-  email: 'admin@recycle.com',
+  email: ADMIN_EMAIL,
   name: 'Admin User',
   role: 'admin',
   createdAt: '2024-01-01T00:00:00Z',
@@ -29,7 +32,7 @@ async function authenticateWithBackend(
 
   const { email, password } = credentials;
 
-  if (email === 'admin@recycle.com' && password === 'admin123') {
+  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD && ADMIN_PASSWORD) {
     return {
       user: MOCK_ADMIN_USER,
       token: MOCK_TOKEN,

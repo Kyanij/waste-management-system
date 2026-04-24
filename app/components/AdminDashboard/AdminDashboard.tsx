@@ -33,12 +33,13 @@ const navItems = [
   { id: 'settings', icon: 'fa-cog', label: 'Settings' },
 ];
 
-type DateRange = 'today' | 'week' | 'month' | 'semester' | 'custom';
+type DateRange = 'today' | 'week' | 'month' | 'year' | 'custom';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState('dashboard');
   const [dateRange, setDateRange] = useState<DateRange>('month');
+  const [weeklyView, setWeeklyView] = useState<'week' | 'month' | 'year'>('week');
   const [customFrom, setCustomFrom] = useState('2024-01-01');
   const [customTo, setCustomTo] = useState('2024-01-15');
   const [language, setLanguage] = useState<'en' | 'id'>('en');
@@ -51,7 +52,7 @@ export function AdminDashboard() {
   useEffect(() => {
     setIsLoading(true);
     const period = dateRange === 'custom' ? 'month' : dateRange;
-    analyticsService.getDashboardStats(period as 'today' | 'week' | 'month' | 'semester').then((stats) => {
+    analyticsService.getDashboardStats(period as 'today' | 'week' | 'month' | 'year', weeklyView).then((stats) => {
       setDashboardStats(stats);
       setIsLoading(false);
     });
@@ -61,7 +62,7 @@ export function AdminDashboard() {
     });
 
     return () => unsubCollections();
-  }, [dateRange]);
+  }, [dateRange, weeklyView]);
 
   const stats = useMemo(() => {
     if (!dashboardStats) {
@@ -108,7 +109,7 @@ export function AdminDashboard() {
     today: isLangEn ? 'Today' : 'Hari Ini',
     thisWeek: isLangEn ? 'This Week' : 'Minggu Ini',
     thisMonth: isLangEn ? 'This Month' : 'Bulan Ini',
-    thisSemester: isLangEn ? 'This Semester' : 'Semester Ini',
+    thisSemester: isLangEn ? 'This Year' : 'Tahun Ini',
     custom: isLangEn ? 'Custom Range' : 'Rentang Khusus',
     apply: isLangEn ? 'Apply' : 'Terapkan',
   };
@@ -170,7 +171,7 @@ export function AdminDashboard() {
               <option value="today">{labels.today}</option>
               <option value="week">{labels.thisWeek}</option>
               <option value="month">{labels.thisMonth}</option>
-              <option value="semester">{labels.thisSemester}</option>
+              <option value="year">{labels.thisSemester}</option>
               <option value="custom">{labels.custom}</option>
             </select>
             {dateRange === 'custom' && (
@@ -192,7 +193,7 @@ export function AdminDashboard() {
                   className="admin-apply-btn"
                   onClick={() => {
                     if (customFrom && customTo) {
-                      analyticsService.getDashboardStats('month').then((stats) => {
+                      analyticsService.getDashboardStats('month', weeklyView).then((stats) => {
                         setDashboardStats(stats);
                       });
                     }
@@ -286,9 +287,24 @@ export function AdminDashboard() {
             <div className="admin-chart-header">
               <h3 className="admin-chart-title">{labels.weeklyTrend}</h3>
               <div className="admin-chart-actions">
-                <button className="admin-chart-filter active">Week</button>
-                <button className="admin-chart-filter">Month</button>
-                <button className="admin-chart-filter">Year</button>
+                <button 
+                  className={`admin-chart-filter ${weeklyView === 'week' ? 'active' : ''}`}
+                  onClick={() => setWeeklyView('week')}
+                >
+                  Week
+                </button>
+                <button 
+                  className={`admin-chart-filter ${weeklyView === 'month' ? 'active' : ''}`}
+                  onClick={() => setWeeklyView('month')}
+                >
+                  Month
+                </button>
+                <button 
+                  className={`admin-chart-filter ${weeklyView === 'year' ? 'active' : ''}`}
+                  onClick={() => setWeeklyView('year')}
+                >
+                  Year
+                </button>
               </div>
             </div>
             <div className="admin-chart-container">

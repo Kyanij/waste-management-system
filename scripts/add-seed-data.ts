@@ -10,15 +10,30 @@ import {
   query,
   orderBy
 } from 'firebase/firestore';
+import 'dotenv/config';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDWq-jkoWMs3J8mQ0uFhVPb6DY9cc06zZo",
-  authDomain: "waste-management-system-c7d62.firebaseapp.com",
-  projectId: "waste-management-system-c7d62",
-  storageBucket: "waste-management-system-c7d62.firebasestorage.app",
-  messagingSenderId: "749198757309",
-  appId: "1:749198757309:web:3c14230218365ff2de56d4",
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID,
 };
+
+if (!firebaseConfig.apiKey) {
+  console.error('❌ Error: Firebase configuration is missing.');
+  console.error('Please create a .env file in the project root with your Firebase config.');
+  console.error('');
+  console.error('Required environment variables:');
+  console.error('  FIREBASE_API_KEY');
+  console.error('  FIREBASE_AUTH_DOMAIN');
+  console.error('  FIREBASE_PROJECT_ID');
+  console.error('  FIREBASE_STORAGE_BUCKET');
+  console.error('  FIREBASE_MESSAGING_SENDER_ID');
+  console.error('  FIREBASE_APP_ID');
+  process.exit(1);
+}
 
 const wasteTypesData = [
   { name: "Plastic Bottles", nameEn: "Plastic Bottles", price: 2500, status: "active" },

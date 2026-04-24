@@ -36,35 +36,48 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Metal Scraps': '#f5af19',
 };
 
-export const analyticsService = {
-  async getDashboardStats(period: 'today' | 'week' | 'month' | 'semester'): Promise<DashboardStats> {
-    const now = new Date();
-    let startDate: Date;
-    
-    switch (period) {
-      case 'today':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        break;
-      case 'week':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case 'month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        break;
-      case 'semester':
-        startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
-        break;
-    }
+function parseFirestoreDate(dateValue: any): string {
+  if (!dateValue) return '';
+  if (typeof dateValue === 'string') {
+    return dateValue.split('T')[0];
+  }
+  if (dateValue.toDate && typeof dateValue.toDate === 'function') {
+    return dateValue.toDate().toISOString().split('T')[0];
+  }
+  if (dateValue.seconds) {
+    const date = new Date(dateValue.seconds * 1000);
+    return date.toISOString().split('T')[0];
+  }
+  return String(dateValue);
+}
 
-    // Fetch all collections and filter by date in JS (Firestore date queries can be tricky)
+function getStartDate(period: string, now: Date): Date {
+  switch (period) {
+    case 'today':
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    case 'week':
+      return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    case 'month':
+      return new Date(now.getFullYear(), now.getMonth(), 1);
+    case 'year':
+      return new Date(now.getFullYear(), 0, 1);
+    default:
+      return new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+}
+
+export const analyticsService = {
+  async getDashboardStats(period: 'today' | 'week' | 'month' | 'year', weeklyView: string = 'week'): Promise<DashboardStats> {
+    const now = new Date();
+    const startDate = getStartDate(period, now);
+    
     const collectionsRef = collection(db, 'wasteCollections');
     const allSnapshot = await getDocs(query(collectionsRef, orderBy('date', 'desc')));
     
-    // Filter by date range
     const startDateStr = startDate.toISOString().split('T')[0];
     const nowDateStr = now.toISOString().split('T')[0];
     
-    console.log('Analytics date range:', startDateStr, 'to', nowDateStr);
+    console.log('Analytics date range:', startDateStr, 'to', nowDateStr, 'period:', period);
     
     let totalWeight = 0;
     let totalEarnings = 0;
@@ -75,17 +88,7 @@ export const analyticsService = {
     
     allSnapshot.docs.forEach(doc => {
       const data = doc.data();
-      const date = data.date;
-      
-      // Handle both string dates and Firestore timestamps
-      let collectionDate: string;
-      if (typeof date === 'string') {
-        collectionDate = date.split('T')[0]; // Handle ISO format if present
-      } else if (date && date.toDate) {
-        collectionDate = date.toDate().toISOString().split('T')[0];
-      } else {
-        collectionDate = String(date || '');
-      }
+      const collectionDate = parseFirestoreDate(data.date);
       
       if (collectionDate >= startDateStr && collectionDate <= nowDateStr) {
         const qty = Number(data.quantity) || 0;
@@ -95,10 +98,8 @@ export const analyticsService = {
         totalEarnings += earn;
         totalRecords++;
         
-        // Daily aggregation
         dailyMap.set(collectionDate, (dailyMap.get(collectionDate) || 0) + qty);
         
-        // Track students
         if (!studentMap.has(data.studentId)) {
           studentMap.set(data.studentId, {
             name: data.studentName || '',
@@ -111,7 +112,6 @@ export const analyticsService = {
         student.total += qty;
         student.count += 1;
         
-        // Track by category
         const cat = data.wasteTypeName || 'Other';
         categoryMap.set(cat, (categoryMap.get(cat) || 0) + qty);
       }
@@ -119,8 +119,7 @@ export const analyticsService = {
     
     const activeStudents = studentMap.size;
     
-    // Generate weekly data (last 7 days from actual data)
-    const weeklyData = this.generateWeeklyDataFromMap(dailyMap);
+    const weeklyData = this.generateWeeklyDataFromMap(dailyMap, weeklyView);
     
     // Prepare category breakdown
     const wasteByCategory = Array.from(categoryMap.entries()).map(([name, value]) => ({
@@ -184,36 +183,82 @@ export const analyticsService = {
     };
   },
 
-  generateWeeklyDataFromMap(dailyMap: Map<string, number>): { day: string; collected: number; target: number }[] {
+  generateWeeklyDataFromMap(dailyMap: Map<string, number>, view: string = 'week'): { day: string; collected: number; target: number }[] {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const result: { day: string; collected: number; target: number }[] = [];
     
-    // Generate last 7 days
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const dayName = days[date.getDay()];
-      const collected = dailyMap.get(dateStr) || 0;
-      
-      result.push({
-        day: dayName,
-        collected: Math.round(collected * 10) / 10,
-        target: 80
-      });
+    let numPoints: number;
+    let isMonthly = view === 'month';
+    let isYearly = view === 'year';
+    
+    if (isYearly) {
+      numPoints = 12;
+      for (let i = 11; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        let collected = 0;
+        dailyMap.forEach((value, dateKey) => {
+          if (dateKey.startsWith(monthKey)) {
+            collected += value;
+          }
+        });
+        result.push({
+          day: months[date.getMonth()],
+          collected: Math.round(collected * 10) / 10,
+          target: 200
+        });
+      }
+    } else if (isMonthly) {
+      numPoints = 4;
+      for (let i = 3; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - (i * 7));
+        const dateStr = date.toISOString().split('T')[0];
+        const dayName = days[date.getDay()];
+        const dayOfYear = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+        let collected = 0;
+        dailyMap.forEach((value, dateKey) => {
+          const keyDate = new Date(dateKey);
+          const keyDayOfYear = Math.floor((keyDate.getTime() - new Date(keyDate.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+          if (Math.abs(keyDayOfYear - dayOfYear) < 7) {
+            collected += value;
+          }
+        });
+        result.push({
+          day: dayName,
+          collected: Math.round(collected * 10) / 10,
+          target: 120
+        });
+      }
+    } else {
+      numPoints = 7;
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const dayName = days[date.getDay()];
+        const collected = dailyMap.get(dateStr) || 0;
+        
+        result.push({
+          day: dayName,
+          collected: Math.round(collected * 10) / 10,
+          target: 80
+        });
+      }
     }
     
     return result;
   },
 
   subscribeToDashboardStats(
-    period: 'today' | 'week' | 'month' | 'semester',
+    period: 'today' | 'week' | 'month' | 'year',
     callback: (stats: DashboardStats) => void
   ): () => void {
     const collectionsRef = collection(db, 'wasteCollections');
     const q = query(collectionsRef, orderBy('date', 'desc'));
     
-    // Listen to real-time updates
     const unsubscribe = onSnapshot(q, () => {
       this.getDashboardStats(period).then(callback);
     });
